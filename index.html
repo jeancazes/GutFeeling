@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Gut Feeling — Essai technique</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root { --bg:#0f1720; --card:#16212e; --accent:#34d399; --txt:#e6edf3; --muted:#8b9bb0; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--txt); min-height:100vh; display:flex;
+         flex-direction:column; align-items:center; padding:18px; }
+  h1 { font-size:1.4rem; margin:6px 0 4px; }
+  .sub { color:var(--muted); font-size:.9rem; margin-bottom:16px; text-align:center; }
+  #reader { width:100%; max-width:360px; border-radius:16px; overflow:hidden; }
+  .card { background:var(--card); border-radius:16px; padding:20px; max-width:440px;
+          width:100%; margin-top:16px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
+  .card h2 { margin:0 0 6px; color:var(--accent); font-size:1.25rem; }
+  .card .latin { font-style:italic; color:var(--muted); margin-bottom:12px; }
+  .card p { line-height:1.55; margin:0 0 16px; }
+  button { background:var(--accent); color:#04231a; border:none; border-radius:12px;
+           padding:16px 18px; font-size:1.05rem; font-weight:700; cursor:pointer;
+           width:100%; min-height:54px; }
+  button.secondary { background:#26384a; color:var(--txt); margin-top:10px; font-weight:600; }
+  .status { font-size:.85rem; color:var(--muted); margin-top:12px; text-align:center; min-height:1.2em; }
+  .hidden { display:none; }
+  .badge { display:inline-block; background:#26384a; color:var(--muted); font-size:.72rem;
+           padding:3px 9px; border-radius:20px; margin-bottom:10px; }
+  .speaking { animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+</style>
+</head>
+<body>
+  <h1>🧫 Gut Feeling</h1>
+  <div class="sub" id="sub">Essai technique — extrait sonore en anglais</div>
+
+  <!-- Mode scanner (si la carte n'est pas ouverte via URL) -->
+  <div id="scanZone">
+    <div id="reader"></div>
+    <div id="status" class="status">Initialisation de la caméra…</div>
+  </div>
+
+  <!-- Mode carte -->
+  <div id="result" class="card hidden">
+    <span class="badge" id="badge">Carte détectée</span>
+    <h2 id="title"></h2>
+    <div class="latin" id="latin"></div>
+    <p id="text"></p>
+    <button id="playBtn">🔊 Écouter l'extrait (anglais)</button>
+    <button id="stopBtn" class="secondary hidden">⏹ Arrêter</button>
+    <button id="rescanBtn" class="secondary">📷 Scanner une autre carte</button>
+  </div>
+
+<script>
+// --- Base de données des cartes (extensible) ---
+const CARDS = {
+  "ecoli": {
+    title: "Escherichia coli",
+    latin: "E. coli — gut bacterium",
+    lang: "en-US",
+    audio: "Escherichia coli, commonly known as E. coli, is a bacterium that lives in " +
+           "the intestines of humans and animals. Most strains are harmless and actually " +
+           "help us by producing vitamin K and protecting the gut from harmful microbes. " +
+           "However, some strains can cause food poisoning, with symptoms like stomach " +
+           "cramps, diarrhea, and fever. E. coli is also one of the most studied organisms " +
+           "in biology, helping scientists understand how cells work."
+  }
+};
+
+const $ = id => document.getElementById(id);
+let currentCard = null, qr = null, ttsReady = false;
+
+function resolveCard(text) {
+  let t = (text || "").trim().toLowerCase();
+  // accepte "ecoli", "GUTFEELING:ecoli", ou une URL "...?card=ecoli"
+  try { if (t.startsWith("http")) t = new URL(text).searchParams.get("card") || t; } catch(e){}
+  if (t.includes(":")) t = t.split(":").pop();
+  return CARDS[t] || null;
+}
+
+function showCard(card) {
+  currentCard = card;
+  $("scanZone").classList.add("hidden");
+  $("title").textContent = card.title;
+  $("latin").textContent = card.latin;
+  $("text").textContent = card.audio;
+  $("result").classList.remove("hidden");
+}
+
+function speak(card) {
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(card.audio);
+  u.lang = card.lang; u.rate = 0.95;
+  const en = synth.getVoices().find(v => v.lang && v.lang.startsWith("en"));
+  if (en) u.voice = en;
+  u.onstart = () => { $("playBtn").classList.add("speaking"); $("stopBtn").classList.remove("hidden"); };
+  u.onend   = () => { $("playBtn").classList.remove("speaking"); $("stopBtn").classList.add("hidden"); };
+  synth.speak(u);
+}
+
+// iOS : la voix ne peut démarrer que sur un appui utilisateur -> bouton uniquement
+$("playBtn").onclick = () => { if (currentCard) speak(currentCard); };
+$("stopBtn").onclick = () => window.speechSynthesis.cancel();
+$("rescanBtn").onclick = () => {
+  window.speechSynthesis.cancel();
+  $("result").classList.add("hidden");
+  $("scanZone").classList.remove("hidden");
+  startScanner();
+};
+
+function onScanSuccess(text) {
+  const card = resolveCard(text);
+  if (!card) { $("status").textContent = "QR non reconnu : " + text; return; }
+  $("status").textContent = "✅ Carte reconnue.";
+  (qr ? qr.stop() : Promise.resolve()).then(() => showCard(card)).catch(() => showCard(card));
+}
+
+function startScanner() {
+  $("status").textContent = "Pointe la caméra vers le QR code…";
+  qr = new Html5Qrcode("reader");
+  qr.start({ facingMode: "environment" },
+           { fps: 10, qrbox: { width: 230, height: 230 } },
+           onScanSuccess)
+    .catch(err => {
+      $("status").innerHTML = "Caméra indisponible (HTTPS requis).<br>" +
+        "Astuce : encode l'URL de la carte dans le QR et scanne avec l'appareil photo du téléphone.";
+    });
+}
+
+// Si la page est ouverte via URL (?card=ecoli) — mode appareil photo natif : pas de scanner
+window.addEventListener("load", () => {
+  const param = new URLSearchParams(location.search).get("card");
+  const card = param ? CARDS[param.toLowerCase()] : null;
+  if (card) { $("sub").textContent = "Appuie sur le bouton pour écouter l'extrait."; showCard(card); }
+  else { startScanner(); }
+});
+</script>
+</body>
+</html>
