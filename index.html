@@ -15,19 +15,23 @@
   h1 { font-size:1.4rem; margin:6px 0 4px; }
   .sub { color:var(--muted); font-size:.9rem; margin-bottom:16px; text-align:center; }
 
-  /* Cadre d'attente */
   .frame { background:var(--card); border:2px dashed #2f4256; border-radius:18px;
-           padding:30px 22px; max-width:440px; width:100%; text-align:center; }
+           padding:28px 22px; max-width:440px; width:100%; text-align:center; }
   .frame-icon { font-size:2.6rem; }
   .frame-title { font-size:1.3rem; font-weight:700; margin:12px 0 6px; }
   .frame-sub { color:var(--muted); font-size:.9rem; line-height:1.5; margin-bottom:16px; }
 
-  /* Aperçu caméra : masqué par défaut SANS arrêter le scan */
-  #reader { width:100%; max-width:340px; margin:14px auto 0; border-radius:14px; overflow:hidden; }
-  #reader.collapsed { height:1px; width:1px; opacity:0; margin:0; pointer-events:none; }
+  /* Caméra : la vidéo garde sa vraie taille (le scan marche). Le cache se pose PAR-DESSUS. */
+  #camWrap { position:relative; width:120px; max-width:120px; margin:14px auto 0; }
+  #reader { width:100%; border-radius:10px; overflow:hidden; min-height:90px; }
+  #reader video { object-fit:cover; }
+  #cover { position:absolute; inset:0; border-radius:10px; background:#0f1925;
+           display:flex; flex-direction:column; align-items:center; justify-content:center;
+           color:var(--muted); font-size:.62rem; gap:5px; text-align:center; padding:4px; }
+  #cover .dot { width:8px; height:8px; border-radius:50%; background:var(--accent);
+                animation:pulse 1.2s infinite; }
   .status { font-size:.82rem; color:var(--muted); margin-top:12px; min-height:1.1em; }
 
-  /* Carte détectée */
   .card { background:var(--card); border-radius:18px; padding:20px; max-width:440px;
           width:100%; box-shadow:0 8px 30px rgba(0,0,0,.4); text-align:center; }
   .illus { width:100%; max-width:260px; margin:0 auto 8px; }
@@ -42,24 +46,35 @@
   button.secondary { background:#26384a; color:var(--txt); font-weight:600; }
   .hidden { display:none; }
   .speaking { animation:pulse 1s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
 </style>
 </head>
 <body>
   <h1>🧫 Gut Feeling</h1>
   <div class="sub" id="sub">Essai technique — extrait sonore en anglais</div>
 
-  <!-- Cadre d'attente. La caméra scanne en continu ; l'aperçu est masqué par défaut. -->
+  <!-- Cadre d'attente -->
   <div id="home" class="frame">
     <div class="frame-icon">🃏</div>
     <div class="frame-title">Présentez une carte</div>
-    <div class="frame-sub">La caméra scanne en continu. Présentez le QR code au dos d'une carte.</div>
-    <button id="previewToggle" class="secondary">👁 Voir la caméra</button>
-    <div id="reader" class="collapsed"></div>
+    <div class="frame-sub" id="homeSub">Appuyez pour démarrer la caméra,
+      puis présentez le QR code au dos d'une carte.</div>
+
+    <!-- caméra visible par défaut (aperçu masqué par le cache) -->
+    <div id="camWrap">
+      <div id="reader"></div>
+      <div id="cover">
+        <div class="dot"></div>
+        <div>Caméra active — aperçu masqué</div>
+      </div>
+    </div>
+    <!-- bouton de secours : affiché seulement si le navigateur refuse le démarrage auto (iPhone) -->
+    <button id="startBtn" class="hidden">▶ Démarrer la caméra</button>
+    <button id="previewToggle" class="secondary hidden">👁 Voir la caméra</button>
     <div id="status" class="status"></div>
   </div>
 
-  <!-- Carte détectée : illustration + son + texte masqué -->
+  <!-- Carte détectée -->
   <div id="result" class="card hidden">
     <div class="illus" id="illus"></div>
     <h2 id="title"></h2>
@@ -72,29 +87,23 @@
   </div>
 
 <script>
-// --- Illustration SVG (E. coli) intégrée ---
 const SVG_ECOLI = `
 <svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#5ee9b0" stop-opacity="0.35"/>
     <stop offset="1" stop-color="#0f1720" stop-opacity="0"/></linearGradient></defs>
   <g fill="none" stroke="#34d399" stroke-width="2.4" stroke-linecap="round" opacity="0.7">
-    <path d="M40 80 Q22 64 8 72 Q22 80 10 96"/>
-    <path d="M44 96 Q26 110 12 104 Q28 100 18 118"/>
-    <path d="M52 60 Q40 44 28 46 Q42 52 34 38"/>
-    <path d="M214 70 Q236 56 250 66 Q234 70 248 84"/>
+    <path d="M40 80 Q22 64 8 72 Q22 80 10 96"/><path d="M44 96 Q26 110 12 104 Q28 100 18 118"/>
+    <path d="M52 60 Q40 44 28 46 Q42 52 34 38"/><path d="M214 70 Q236 56 250 66 Q234 70 248 84"/>
     <path d="M210 92 Q232 104 246 96 Q230 96 242 112"/>
   </g>
   <rect x="56" y="50" width="148" height="60" rx="30" fill="#1f3a2e" stroke="#34d399" stroke-width="3"/>
   <rect x="56" y="50" width="148" height="60" rx="30" fill="url(#g)"/>
-  <circle cx="92" cy="76" r="6" fill="#9af5cf"/>
-  <circle cx="120" cy="90" r="4.5" fill="#9af5cf"/>
-  <circle cx="150" cy="72" r="5.5" fill="#9af5cf"/>
-  <circle cx="172" cy="88" r="4" fill="#9af5cf"/>
+  <circle cx="92" cy="76" r="6" fill="#9af5cf"/><circle cx="120" cy="90" r="4.5" fill="#9af5cf"/>
+  <circle cx="150" cy="72" r="5.5" fill="#9af5cf"/><circle cx="172" cy="88" r="4" fill="#9af5cf"/>
   <path d="M104 64 q14 8 30 -2" stroke="#cffae8" stroke-width="2" fill="none" opacity="0.6"/>
 </svg>`;
 
-// --- Base de données des cartes (extensible) ---
 const CARDS = {
   "ecoli": {
     title: "Escherichia coli",
@@ -120,7 +129,6 @@ function resolveCard(text) {
   return CARDS[t] || null;
 }
 
-// ---- Carte ----
 function showCard(card) {
   currentCard = card;
   stopScanner();
@@ -132,7 +140,7 @@ function showCard(card) {
   $("text").classList.add("hidden");
   $("textToggle").textContent = "📄 Voir le texte";
   $("result").classList.remove("hidden");
-  speak(card); // lecture auto (bloquée sur iPhone -> bouton dispo)
+  speak(card);
 }
 
 function speak(card) {
@@ -157,23 +165,32 @@ $("rescanBtn").onclick = () => {
   window.speechSynthesis.cancel();
   $("result").classList.add("hidden");
   $("home").classList.remove("hidden");
-  startScanner(); // relance le scan en continu, aperçu masqué
+  startScanner();
 };
 
-// ---- Caméra : toujours en scan, aperçu seulement masqué/affiché ----
+// ---- Caméra : démarrée sur appui (requis iPhone), puis scan continu ----
 function startScanner() {
   if (scanning) return;
-  scanning = true;
+  $("startBtn").classList.add("hidden");
+  $("camWrap").classList.remove("hidden");
+  $("status").textContent = "Démarrage de la caméra…";
   qr = new Html5Qrcode("reader");
-  // "user" = caméra côté écran (frontale). "environment" = caméra arrière.
+  // "user" = caméra côté écran. Remplacer par "environment" pour la caméra arrière.
+  // qrbox adaptatif : s'ajuste à l'aperçu réduit sans casser la détection
+  const box = (w, h) => { const m = Math.floor(Math.min(w, h) * 0.85); return { width:m, height:m }; };
   qr.start({ facingMode: "user" },
-           { fps: 10, qrbox: { width: 230, height: 230 } },
+           { fps: 10, qrbox: box, aspectRatio: 1.0 },
            onScanSuccess)
-    .then(() => { $("status").textContent = "Caméra active — en attente d'une carte…"; })
-    .catch(() => {
-      scanning = false;
-      $("status").innerHTML = "Caméra indisponible (HTTPS + autorisation requis).<br>" +
-        "Astuce : scannez le QR avec l'appareil photo du téléphone.";
+    .then(() => {
+      scanning = true;
+      $("previewToggle").classList.remove("hidden");
+      $("status").textContent = "Caméra active — en attente d'une carte…";
+    })
+    .catch(err => {
+      // iPhone : démarrage auto refusé -> on propose le bouton (un appui suffit)
+      $("previewToggle").classList.add("hidden");
+      $("startBtn").classList.remove("hidden");
+      $("status").innerHTML = "Appuyez sur « Démarrer la caméra » pour autoriser l'accès.";
     });
 }
 function stopScanner() {
@@ -186,10 +203,12 @@ function onScanSuccess(text) {
   showCard(card);
 }
 
-// Le bouton ne fait QU'afficher/masquer l'aperçu — le scan continue.
+$("startBtn").onclick = startScanner;
+
+// Le bouton ne fait QUE masquer/afficher l'image — le scan continue dessous.
 $("previewToggle").onclick = () => {
-  const hidden = $("reader").classList.toggle("collapsed");
-  $("previewToggle").textContent = hidden ? "👁 Voir la caméra" : "🙈 Masquer la caméra";
+  const shown = $("cover").classList.toggle("hidden");
+  $("previewToggle").textContent = shown ? "🙈 Masquer la caméra" : "👁 Voir la caméra";
 };
 
 // ---- Ouverture via URL (?card=ecoli) : appareil photo natif ----
@@ -197,7 +216,7 @@ window.addEventListener("load", () => {
   const param = new URLSearchParams(location.search).get("card");
   const card = param ? CARDS[param.toLowerCase()] : null;
   if (card) { $("sub").textContent = "Appuyez sur le bouton pour écouter l'extrait."; showCard(card); }
-  else { startScanner(); } // caméra active dès le départ, aperçu masqué
+  else { startScanner(); }   // tentative de démarrage auto (Android) ; sinon bouton (iPhone)
 });
 </script>
 </body>
