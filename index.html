@@ -14,20 +14,31 @@
          flex-direction:column; align-items:center; padding:18px; }
   h1 { font-size:1.4rem; margin:6px 0 4px; }
   .sub { color:var(--muted); font-size:.9rem; margin-bottom:16px; text-align:center; }
+
+  /* Cadre d'attente */
+  .frame { background:var(--card); border:2px dashed #2f4256; border-radius:18px;
+           padding:34px 22px; max-width:440px; width:100%; text-align:center; }
+  .frame-icon { font-size:2.6rem; }
+  .frame-title { font-size:1.3rem; font-weight:700; margin:12px 0 6px; }
+  .frame-sub { color:var(--muted); font-size:.9rem; line-height:1.5; margin-bottom:18px; }
+
   #reader { width:100%; max-width:360px; border-radius:16px; overflow:hidden; }
-  .card { background:var(--card); border-radius:16px; padding:20px; max-width:440px;
-          width:100%; margin-top:16px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
-  .card h2 { margin:0 0 6px; color:var(--accent); font-size:1.25rem; }
-  .card .latin { font-style:italic; color:var(--muted); margin-bottom:12px; }
-  .card p { line-height:1.55; margin:0 0 16px; }
+  .status { font-size:.85rem; color:var(--muted); margin-top:12px; text-align:center; min-height:1.2em; }
+
+  /* Carte détectée */
+  .card { background:var(--card); border-radius:18px; padding:20px; max-width:440px;
+          width:100%; box-shadow:0 8px 30px rgba(0,0,0,.4); text-align:center; }
+  .illus { width:100%; max-width:260px; margin:0 auto 8px; }
+  .card h2 { margin:6px 0 4px; color:var(--accent); font-size:1.3rem; }
+  .card .latin { font-style:italic; color:var(--muted); margin-bottom:16px; }
+  .card p { line-height:1.55; margin:14px 0 4px; text-align:left;
+            background:#0f1925; border-radius:10px; padding:14px; }
+
   button { background:var(--accent); color:#04231a; border:none; border-radius:12px;
            padding:16px 18px; font-size:1.05rem; font-weight:700; cursor:pointer;
-           width:100%; min-height:54px; }
-  button.secondary { background:#26384a; color:var(--txt); margin-top:10px; font-weight:600; }
-  .status { font-size:.85rem; color:var(--muted); margin-top:12px; text-align:center; min-height:1.2em; }
+           width:100%; min-height:54px; margin-top:10px; }
+  button.secondary { background:#26384a; color:var(--txt); font-weight:600; }
   .hidden { display:none; }
-  .badge { display:inline-block; background:#26384a; color:var(--muted); font-size:.72rem;
-           padding:3px 9px; border-radius:20px; margin-bottom:10px; }
   .speaking { animation:pulse 1s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 </style>
@@ -36,30 +47,67 @@
   <h1>🧫 Gut Feeling</h1>
   <div class="sub" id="sub">Essai technique — extrait sonore en anglais</div>
 
-  <!-- Mode scanner (si la carte n'est pas ouverte via URL) -->
-  <div id="scanZone">
-    <div id="reader"></div>
-    <div id="status" class="status">Initialisation de la caméra…</div>
+  <!-- 1. Cadre d'attente (caméra masquée par défaut) -->
+  <div id="home" class="frame">
+    <div class="frame-icon">🃏</div>
+    <div class="frame-title">Présentez une carte</div>
+    <div class="frame-sub">Scannez le QR code au dos d'une carte avec l'appareil photo de votre téléphone,
+      ou activez la caméra ci-dessous.</div>
+    <button id="camToggle" class="secondary">📷 Activer la caméra</button>
   </div>
 
-  <!-- Mode carte -->
+  <!-- Zone caméra (affichée seulement sur demande) -->
+  <div id="scanZone" class="hidden">
+    <div id="reader"></div>
+    <div id="status" class="status">Initialisation de la caméra…</div>
+    <button id="camStop" class="secondary">✕ Masquer la caméra</button>
+  </div>
+
+  <!-- 3. Carte détectée : illustration + son + texte masqué -->
   <div id="result" class="card hidden">
-    <span class="badge" id="badge">Carte détectée</span>
+    <div class="illus" id="illus"></div>
     <h2 id="title"></h2>
     <div class="latin" id="latin"></div>
-    <p id="text"></p>
     <button id="playBtn">🔊 Écouter l'extrait (anglais)</button>
     <button id="stopBtn" class="secondary hidden">⏹ Arrêter</button>
-    <button id="rescanBtn" class="secondary">📷 Scanner une autre carte</button>
+    <button id="textToggle" class="secondary">📄 Voir le texte</button>
+    <p id="text" class="hidden"></p>
+    <button id="rescanBtn" class="secondary">↩ Retour</button>
   </div>
 
 <script>
+// --- Illustration SVG (E. coli) intégrée, aucun fichier externe ---
+const SVG_ECOLI = `
+<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#34d399" stroke-width="2.4" stroke-linecap="round" opacity="0.7">
+    <path d="M40 80 Q22 64 8 72 Q22 80 10 96"/>
+    <path d="M44 96 Q26 110 12 104 Q28 100 18 118"/>
+    <path d="M52 60 Q40 44 28 46 Q42 52 34 38"/>
+    <path d="M214 70 Q236 56 250 66 Q234 70 248 84"/>
+    <path d="M210 92 Q232 104 246 96 Q230 96 242 112"/>
+  </g>
+  <rect x="56" y="50" width="148" height="60" rx="30" fill="#1f3a2e" stroke="#34d399" stroke-width="3"/>
+  <rect x="56" y="50" width="148" height="60" rx="30" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ee9b0" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#0f1720" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="92" cy="76" r="6" fill="#9af5cf"/>
+  <circle cx="120" cy="90" r="4.5" fill="#9af5cf"/>
+  <circle cx="150" cy="72" r="5.5" fill="#9af5cf"/>
+  <circle cx="172" cy="88" r="4" fill="#9af5cf"/>
+  <path d="M104 64 q14 8 30 -2" stroke="#cffae8" stroke-width="2" fill="none" opacity="0.6"/>
+</svg>`;
+
 // --- Base de données des cartes (extensible) ---
 const CARDS = {
   "ecoli": {
     title: "Escherichia coli",
     latin: "E. coli — gut bacterium",
     lang: "en-US",
+    illus: SVG_ECOLI,
     audio: "Escherichia coli, commonly known as E. coli, is a bacterium that lives in " +
            "the intestines of humans and animals. Most strains are harmless and actually " +
            "help us by producing vitamin K and protecting the gut from harmful microbes. " +
@@ -70,23 +118,29 @@ const CARDS = {
 };
 
 const $ = id => document.getElementById(id);
-let currentCard = null, qr = null;
+let currentCard = null, qr = null, scanning = false;
 
 function resolveCard(text) {
   let t = (text || "").trim().toLowerCase();
-  // accepte "ecoli", "GUTFEELING:ecoli", ou une URL "...?card=ecoli"
   try { if (t.startsWith("http")) t = new URL(text).searchParams.get("card") || t; } catch(e){}
   if (t.includes(":")) t = t.split(":").pop();
   return CARDS[t] || null;
 }
 
+// ---- Affichage d'une carte ----
 function showCard(card) {
   currentCard = card;
+  stopScanner();
+  $("home").classList.add("hidden");
   $("scanZone").classList.add("hidden");
+  $("illus").innerHTML = card.illus || "";
   $("title").textContent = card.title;
   $("latin").textContent = card.latin;
   $("text").textContent = card.audio;
+  $("text").classList.add("hidden");
+  $("textToggle").textContent = "📄 Voir le texte";
   $("result").classList.remove("hidden");
+  speak(card); // tentative de lecture auto (bloquée sur iPhone -> bouton dispo)
 }
 
 function speak(card) {
@@ -101,42 +155,53 @@ function speak(card) {
   synth.speak(u);
 }
 
-// iOS : la voix ne peut démarrer que sur un appui utilisateur -> bouton uniquement
 $("playBtn").onclick = () => { if (currentCard) speak(currentCard); };
 $("stopBtn").onclick = () => window.speechSynthesis.cancel();
+$("textToggle").onclick = () => {
+  const hidden = $("text").classList.toggle("hidden");
+  $("textToggle").textContent = hidden ? "📄 Voir le texte" : "🙈 Masquer le texte";
+};
 $("rescanBtn").onclick = () => {
   window.speechSynthesis.cancel();
   $("result").classList.add("hidden");
-  $("scanZone").classList.remove("hidden");
-  startScanner();
+  $("home").classList.remove("hidden");
 };
 
-function onScanSuccess(text) {
-  const card = resolveCard(text);
-  if (!card) { $("status").textContent = "QR non reconnu : " + text; return; }
-  $("status").textContent = "✅ Carte reconnue.";
-  (qr ? qr.stop() : Promise.resolve()).then(() => showCard(card)).catch(() => showCard(card));
-}
-
+// ---- Caméra (optionnelle) ----
 function startScanner() {
+  $("home").classList.add("hidden");
+  $("scanZone").classList.remove("hidden");
   $("status").textContent = "Pointe la caméra vers le QR code…";
+  scanning = true;
   qr = new Html5Qrcode("reader");
   // "user" = caméra côté écran (frontale). Mettre "environment" pour la caméra arrière.
   qr.start({ facingMode: "user" },
            { fps: 10, qrbox: { width: 230, height: 230 } },
            onScanSuccess)
-    .catch(err => {
+    .catch(() => {
       $("status").innerHTML = "Caméra indisponible (HTTPS requis).<br>" +
-        "Astuce : encode l'URL de la carte dans le QR et scanne avec l'appareil photo du téléphone.";
+        "Astuce : scannez plutôt le QR avec l'appareil photo du téléphone.";
     });
 }
+function stopScanner() {
+  if (qr && scanning) { try { qr.stop(); } catch(e){} }
+  scanning = false;
+}
+function onScanSuccess(text) {
+  const card = resolveCard(text);
+  if (!card) { $("status").textContent = "QR non reconnu : " + text; return; }
+  showCard(card);
+}
 
-// Si la page est ouverte via URL (?card=ecoli) — mode appareil photo natif : pas de scanner
+$("camToggle").onclick = startScanner;
+$("camStop").onclick = () => { stopScanner(); $("scanZone").classList.add("hidden"); $("home").classList.remove("hidden"); };
+
+// ---- Ouverture via URL (?card=ecoli) : appareil photo natif ----
 window.addEventListener("load", () => {
   const param = new URLSearchParams(location.search).get("card");
   const card = param ? CARDS[param.toLowerCase()] : null;
-  if (card) { $("sub").textContent = "Appuie sur le bouton pour écouter l'extrait."; showCard(card); }
-  else { startScanner(); }
+  if (card) { $("sub").textContent = "Appuyez sur le bouton pour écouter l'extrait."; showCard(card); }
+  // sinon : on reste sur le cadre « Présentez une carte », caméra masquée.
 });
 </script>
 </body>
