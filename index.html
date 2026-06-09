@@ -11,29 +11,30 @@
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
          background:var(--bg); color:var(--txt); min-height:100vh; display:flex;
-         flex-direction:column; align-items:center; padding:18px; }
-  h1 { font-size:1.4rem; margin:6px 0 4px; }
-  .sub { color:var(--muted); font-size:.9rem; margin-bottom:16px; text-align:center; }
+         flex-direction:column; align-items:center; padding:16px; }
+  .wrap { width:100%; max-width:460px; }
 
+  /* Barre du haut : caméra à gauche, titre à droite */
+  .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  #camBox { width:88px; flex:0 0 88px; }
+  #reader { width:88px; height:88px; border-radius:12px; overflow:hidden;
+            background:#0f1925; border:1px solid #2f4256; }
+  #reader video { width:100%; height:100%; object-fit:cover; }
+  .brand { text-align:right; }
+  .brand .logo { font-size:1.5rem; font-weight:800; line-height:1.1; }
+  .brand .tag { color:var(--muted); font-size:.72rem; }
+  .camstatus { font-size:.62rem; color:var(--muted); text-align:center; margin-top:4px; min-height:.8em; }
+
+  /* Bloc central */
   .frame { background:var(--card); border:2px dashed #2f4256; border-radius:18px;
-           padding:28px 22px; max-width:440px; width:100%; text-align:center; }
-  .frame-icon { font-size:2.6rem; }
-  .frame-title { font-size:1.3rem; font-weight:700; margin:12px 0 6px; }
-  .frame-sub { color:var(--muted); font-size:.9rem; line-height:1.5; margin-bottom:16px; }
+           padding:38px 22px; width:100%; text-align:center; margin-top:22px; }
+  .frame-icon { font-size:3rem; }
+  .frame-title { font-size:1.35rem; font-weight:700; margin:14px 0 6px; }
+  .frame-sub { color:var(--muted); font-size:.9rem; line-height:1.5; }
 
-  /* Caméra : la vidéo garde sa vraie taille (le scan marche). Le cache se pose PAR-DESSUS. */
-  #camWrap { position:relative; width:120px; max-width:120px; margin:14px auto 0; }
-  #reader { width:100%; border-radius:10px; overflow:hidden; min-height:90px; }
-  #reader video { object-fit:cover; }
-  #cover { position:absolute; inset:0; border-radius:10px; background:#0f1925;
-           display:flex; flex-direction:column; align-items:center; justify-content:center;
-           color:var(--muted); font-size:.62rem; gap:5px; text-align:center; padding:4px; }
-  #cover .dot { width:8px; height:8px; border-radius:50%; background:var(--accent);
-                animation:pulse 1.2s infinite; }
-  .status { font-size:.82rem; color:var(--muted); margin-top:12px; min-height:1.1em; }
-
-  .card { background:var(--card); border-radius:18px; padding:20px; max-width:440px;
-          width:100%; box-shadow:0 8px 30px rgba(0,0,0,.4); text-align:center; }
+  /* Carte détectée */
+  .card { background:var(--card); border-radius:18px; padding:20px; width:100%;
+          box-shadow:0 8px 30px rgba(0,0,0,.4); text-align:center; margin-top:22px; }
   .illus { width:100%; max-width:260px; margin:0 auto 8px; }
   .card h2 { margin:6px 0 4px; color:var(--accent); font-size:1.3rem; }
   .card .latin { font-style:italic; color:var(--muted); margin-bottom:16px; }
@@ -41,37 +42,36 @@
             background:#0f1925; border-radius:10px; padding:14px; }
 
   button { background:var(--accent); color:#04231a; border:none; border-radius:12px;
-           padding:16px 18px; font-size:1.05rem; font-weight:700; cursor:pointer;
-           width:100%; min-height:54px; margin-top:10px; }
+           padding:15px 18px; font-size:1.02rem; font-weight:700; cursor:pointer;
+           width:100%; min-height:52px; margin-top:10px; }
   button.secondary { background:#26384a; color:var(--txt); font-weight:600; }
+  button.tiny { min-height:auto; padding:8px 10px; font-size:.8rem; margin-top:6px; }
   .hidden { display:none; }
   .speaking { animation:pulse 1s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 </style>
 </head>
 <body>
-  <h1>🧫 Gut Feeling</h1>
-  <div class="sub" id="sub">Essai technique — extrait sonore en anglais</div>
+<div class="wrap">
 
-  <!-- Cadre d'attente -->
+  <!-- Barre du haut -->
+  <div class="topbar">
+    <div id="camBox">
+      <div id="reader"></div>
+      <div class="camstatus" id="camstatus">caméra…</div>
+      <button id="startBtn" class="secondary tiny hidden">Activer</button>
+    </div>
+    <div class="brand">
+      <div class="logo">🧫 Gut Feeling</div>
+      <div class="tag" id="tag">essai technique</div>
+    </div>
+  </div>
+
+  <!-- Bloc central : attente -->
   <div id="home" class="frame">
     <div class="frame-icon">🃏</div>
     <div class="frame-title">Présentez une carte</div>
-    <div class="frame-sub" id="homeSub">Appuyez pour démarrer la caméra,
-      puis présentez le QR code au dos d'une carte.</div>
-
-    <!-- caméra visible par défaut (aperçu masqué par le cache) -->
-    <div id="camWrap">
-      <div id="reader"></div>
-      <div id="cover">
-        <div class="dot"></div>
-        <div>Caméra active — aperçu masqué</div>
-      </div>
-    </div>
-    <!-- bouton de secours : affiché seulement si le navigateur refuse le démarrage auto (iPhone) -->
-    <button id="startBtn" class="hidden">▶ Démarrer la caméra</button>
-    <button id="previewToggle" class="secondary hidden">👁 Voir la caméra</button>
-    <div id="status" class="status"></div>
+    <div class="frame-sub">Approchez le QR code au dos d'une carte de la caméra.</div>
   </div>
 
   <!-- Carte détectée -->
@@ -85,6 +85,8 @@
     <p id="text" class="hidden"></p>
     <button id="rescanBtn" class="secondary">↩ Retour</button>
   </div>
+
+</div>
 
 <script>
 const SVG_ECOLI = `
@@ -120,18 +122,19 @@ const CARDS = {
 };
 
 const $ = id => document.getElementById(id);
-let currentCard = null, qr = null, scanning = false;
+let currentCard = null, qr = null, scanning = false, activeKey = null;
 
-function resolveCard(text) {
+function cardKey(text) {
   let t = (text || "").trim().toLowerCase();
   try { if (t.startsWith("http")) t = new URL(text).searchParams.get("card") || t; } catch(e){}
   if (t.includes(":")) t = t.split(":").pop();
-  return CARDS[t] || null;
+  return t;
 }
+function resolveCard(text) { return CARDS[cardKey(text)] || null; }
 
-function showCard(card) {
+function showCard(card, key) {
   currentCard = card;
-  stopScanner();
+  activeKey = key || null;
   $("home").classList.add("hidden");
   $("illus").innerHTML = card.illus || "";
   $("title").textContent = card.title;
@@ -163,60 +166,42 @@ $("textToggle").onclick = () => {
 };
 $("rescanBtn").onclick = () => {
   window.speechSynthesis.cancel();
+  activeKey = null;                       // autorise un nouveau scan
   $("result").classList.add("hidden");
   $("home").classList.remove("hidden");
-  startScanner();
+  // la caméra n'a pas été arrêtée : le scan reste actif
 };
 
-// ---- Caméra : démarrée sur appui (requis iPhone), puis scan continu ----
+// ---- Caméra toujours active, petit aperçu en haut à gauche ----
 function startScanner() {
   if (scanning) return;
   $("startBtn").classList.add("hidden");
-  $("camWrap").classList.remove("hidden");
-  $("status").textContent = "Démarrage de la caméra…";
+  $("camstatus").textContent = "démarrage…";
   qr = new Html5Qrcode("reader");
-  // "user" = caméra côté écran. Remplacer par "environment" pour la caméra arrière.
-  // qrbox adaptatif : s'ajuste à l'aperçu réduit sans casser la détection
-  const box = (w, h) => { const m = Math.floor(Math.min(w, h) * 0.85); return { width:m, height:m }; };
-  qr.start({ facingMode: "user" },
-           { fps: 10, qrbox: box, aspectRatio: 1.0 },
-           onScanSuccess)
-    .then(() => {
-      scanning = true;
-      $("previewToggle").classList.remove("hidden");
-      $("status").textContent = "Caméra active — en attente d'une carte…";
-    })
-    .catch(err => {
-      // iPhone : démarrage auto refusé -> on propose le bouton (un appui suffit)
-      $("previewToggle").classList.add("hidden");
-      $("startBtn").classList.remove("hidden");
-      $("status").innerHTML = "Appuyez sur « Démarrer la caméra » pour autoriser l'accès.";
+  const box = (w, h) => { const m = Math.floor(Math.min(w, h) * 0.9); return { width:m, height:m }; };
+  // "user" = caméra côté écran. "environment" = caméra arrière.
+  qr.start({ facingMode: "user" }, { fps: 10, qrbox: box, aspectRatio: 1.0 }, onScanSuccess)
+    .then(() => { scanning = true; $("camstatus").textContent = "● active"; })
+    .catch(() => {
+      $("camstatus").textContent = "autorisation requise";
+      $("startBtn").classList.remove("hidden");  // secours iPhone : un appui
     });
 }
-function stopScanner() {
-  if (qr && scanning) { try { qr.stop(); } catch(e){} }
-  scanning = false;
-}
 function onScanSuccess(text) {
-  const card = resolveCard(text);
-  if (!card) { $("status").textContent = "QR non reconnu : " + text; return; }
-  showCard(card);
+  const key = cardKey(text);
+  const card = CARDS[key];
+  if (!card) { $("camstatus").textContent = "QR inconnu"; return; }
+  if (key === activeKey) return;          // déjà affichée : on ne relance pas
+  showCard(card, key);
 }
-
 $("startBtn").onclick = startScanner;
-
-// Le bouton ne fait QUE masquer/afficher l'image — le scan continue dessous.
-$("previewToggle").onclick = () => {
-  const shown = $("cover").classList.toggle("hidden");
-  $("previewToggle").textContent = shown ? "🙈 Masquer la caméra" : "👁 Voir la caméra";
-};
 
 // ---- Ouverture via URL (?card=ecoli) : appareil photo natif ----
 window.addEventListener("load", () => {
   const param = new URLSearchParams(location.search).get("card");
   const card = param ? CARDS[param.toLowerCase()] : null;
-  if (card) { $("sub").textContent = "Appuyez sur le bouton pour écouter l'extrait."; showCard(card); }
-  else { startScanner(); }   // tentative de démarrage auto (Android) ; sinon bouton (iPhone)
+  if (card) { $("tag").textContent = "carte ouverte"; showCard(card, param.toLowerCase()); }
+  startScanner(); // tentative auto (Android) ; bouton « Activer » en secours (iPhone)
 });
 </script>
 </body>
