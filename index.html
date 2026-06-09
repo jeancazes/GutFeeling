@@ -70,7 +70,7 @@ const CARDS = {
 };
 
 const $ = id => document.getElementById(id);
-let currentCard = null, qr = null, ttsReady = false;
+let currentCard = null, qr = null;
 
 function resolveCard(text) {
   let t = (text || "").trim().toLowerCase();
@@ -121,7 +121,8 @@ function onScanSuccess(text) {
 function startScanner() {
   $("status").textContent = "Pointe la caméra vers le QR code…";
   qr = new Html5Qrcode("reader");
-  qr.start({ facingMode: "environment" },
+  // "user" = caméra côté écran (frontale). Mettre "environment" pour la caméra arrière.
+  qr.start({ facingMode: "user" },
            { fps: 10, qrbox: { width: 230, height: 230 } },
            onScanSuccess)
     .catch(err => {
